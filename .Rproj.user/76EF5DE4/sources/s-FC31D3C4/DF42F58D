@@ -1,7 +1,7 @@
 {
     "id": "DF42F58D",
-    "path": "~/_Personal/Universidad/Capítulo del libro 'Ciencia de Datos con R'/chapters/212049_cd_empleo.Rmd",
-    "project_path": null,
+    "path": "Z:/R/Evolución paro CLM 2007-2022/212049_cd_empleo.Rmd",
+    "project_path": "212049_cd_empleo.Rmd",
     "type": "r_markdown",
     "hash": "3487921903",
     "contents": "",
@@ -19,11 +19,11 @@
         "rmdVisualModeLocation": "233:0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1652370341,
+    "lastKnownWriteTime": 1652798128,
     "encoding": "ISO8859-1",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1652370341294,
+    "last_content_update": 1652798128540,
     "read_only": false,
     "read_only_alternatives": []
 }
