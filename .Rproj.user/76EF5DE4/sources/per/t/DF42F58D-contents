@@ -1,0 +1,19 @@
+---
+title: "Evolución de la estructura del paro registrado en Castilla-La Mancha durante los últimos 15 años"
+author: "Isidro Hidalgo Arellano"
+mail: "ihidalgo@jccm.es"
+output:
+  html_document:
+    df_print: paged
+    toc: TRUE
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(message = FALSE)
+```
+
+En este capítulo se analiza la evolución del paro registrado en Castilla-La Mancha durante los últimos 15 años, con el fin de determinar el efecto de las crisis de 2008 y 2020 en su estructura. Para ello se toman los datos del paro registrado en la región según sexo (hombre / mujer), 3 tramos de edad (menor de 30 / entre 30 y 44 / 45 o más años), 4 tramos de tiempo de búsqueda de empleo (hasta 6 / más de 6 hasta 12 / más de 12 hasta 24 / más de 24 meses), y sector de actividad económica (agricultura / industria / construcción / servicios / sin actividad).
+
+```{r}
+
+```
