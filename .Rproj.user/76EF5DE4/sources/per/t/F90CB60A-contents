@@ -11,7 +11,7 @@ library(openxlsx)
 library(tidyverse)
 library(gridExtra)
 library(ggrastr)
-library(cowplot)
+library(egg)
 
 
 # Establecemos variables y parámetros generales...
@@ -57,7 +57,7 @@ búsqueda_empleo <- tibble(original = niveles_tiempo_búsqueda_empleo,
 ) # búsqueda_empleo
 
 # Cargamos los datos...
-fichero <- "//jclm.es/PROS/SC/OBSERVATORIOEMPLEO/R/Mapas de calor parados/Parados.xlsx"
+fichero <- "//jclm.es/PROS/SC/OBSERVATORIOEMPLEO/R/Evolución paro CLM 2007-2022/Parados.xlsx"
 datos <- read.xlsx(xlsxFile = fichero,
                    sheet = "Media paro registrado 12M",
                    colNames = TRUE)
@@ -99,6 +99,29 @@ datos <- as_tibble(datos) %>%
             tiempo_búsqueda_empleo_agregado, parados)
 summary(datos)
 
+# Representamos la evolución del paro en estos 15 años
+resumen <- datos %>%
+     group_by(año) %>%
+     summarise(parados = sum(parados)) %>%
+     mutate(año = as.numeric(as.character(año)))
+
+años <- c(2007, 2013, 2019, 2020, 2022)
+paro_años <- resumen %>%
+     filter(año %in% años) %>%
+     select(parados) %>%
+     mutate(parados = round(parados, 0))
+puntos <- data.frame(años, paro_años)
+
+ggplot(resumen, aes(año, parados)) +
+     geom_line(size = 2, col = "blue", alpha = 0.3) +
+     xlab("")+
+     ylab("número de parados") +
+     ggtitle("Evolución del paro registrado en Castilla-La Mancha desde 2007") +
+     geom_point(puntos, mapping = aes(x = años, y = parados, shape = "circle filled", size = 1.3,
+                                      fill = "blue", alpha = 0.1)) +
+     theme(legend.position = "none")
+
+     
 # Montamos la función que genera los gráficos de evolución:
 graf_evol <- function(variable){
      # INPUT: variable [alfanumérico; nombre de la variable a representar]
@@ -141,21 +164,15 @@ graf_evol <- function(variable){
           theme(legend.position = "bottom") +
           xlab("") +
           ylab("")
-     
-     leyenda <- get_legend(graf_absolutos)
-     graf <- plot_grid(graf_absolutos + theme(legend.position = "none"),
-                       graf_porcentajes,
-                       axis = "l",
-                       greedy = TRUE,
-                       ncol = 1,
-                       nrow = 2,
-                       labels = c("Número de parados", "Distribución porcentual"),
-                       common.legend = TRUE,
-                       legend = "bottom",
-                       theme(plot.title = paste0("Evolución del número de parados y su distribución porcentual según ", variable)))
-     
+
+     graf <- ggarrange(graf_absolutos+ theme(legend.position = "none"),
+                       graf_porcentajes,ncol = 1,
+                       labels = c("Número de parados", "Distribución porcentual")) +
+                       theme(plot.title = paste0("Evolución del número de parados y su distribución porcentual según ", variable))
+
      return(graf)
-}
+     
+} # graf_evol
 
 # Generamos los gráficos de evolución:
 for (variab in variables$var[variables$var != "edad"]){
@@ -192,7 +209,8 @@ heatmap_años <- function(variable1, variable2, inicio = 2007, fin = 2022){
                 axis.text = element_text(size = 10, face = "bold"))
      
      return(graf)
-}
+     
+} # heatmap_años
 
 # Generamos los gráficos comparativos entre 2 años, para 2 variables:
 for (i in 1:(length(variables$var)-1)){
@@ -204,3 +222,39 @@ for (i in 1:(length(variables$var)-1)){
                         variables$literal[j],".pdf"))
      } #j
 } #i
+
+
+# Montamos la función que genera los gráficos de funciones de densidad
+
+densidad_compara <- function(variab, inicio = 2007, crisis = 2013,
+                             preCOVID = 2019, postCOVID = 2020, fin = 2022){
+     # INPUT: variable [alfanumérico; nombre de la variable a representar]
+     #        inicio, medio y fin [numéricos; años a comparar]
+     # Produce un cuadro de gráficos comparando las distribuciones de la edad
+     # dentro de cada estrato de la variable para 3 años diferentes (2009, 2019 y 2022 por defecto):
+     
+     tabla <- select(datos, año, variab, edad, parados) %>%
+          filter(año %in% c(inicio, crisis, preCOVID, postCOVID, fin))
+     names(tabla) <- c("año", "variable", "edad", "parados")
+     
+     tabla <- tabla %>%
+          group_by(año, edad, variable) %>% 
+          summarise(parados = sum(parados))
+     graf <-ggplot(tabla, aes(x = edad, y = parados, color = año, fill = año)) +
+          geom_line(alpha=0.8, size = 1.2) +
+          facet_wrap(~ variable, ncol = dim(table(tabla$variable))[1]) +
+          ggtitle(paste0("Distribución por edades según año y ",
+                         variables$literal[variables$var == variab])) +
+          scale_color_manual(paleta_líneas, .groups = año)
+     
+     return(graf)
+     
+} # densidad_compara
+
+# Generamos los gráficos de funciones de densidad
+for (variab in variables$var[!(variables$var %in% c("edad", "tramo_edad",
+                                                    "tiempo_búsqueda_empleo"))]){
+     print(densidad_compara(variab))
+     ggsave(paste0("./Gráficos/Distribución de edad según ",
+                   variables$literal[variables$var == variab], ".pdf"))
+}
