@@ -9,19 +9,17 @@ rm(list = ls(all.names = TRUE))
 # Cargamos las librerías necesarias
 library(openxlsx)
 library(tidyverse)
-library(gridExtra)
-library(ggrastr)
-library(cowplot)
+library(egg)
 
 
 # Establecemos variables y parámetros generales...
 options(warn=-1)
-paleta_heatmaps <- c(rgb(.8,.9,.8,1), rgb(.753,0,0,1))
+# paleta_heatmaps <- c(rgb(.8,.9,.8,1), rgb(.753,0,0,1))
+paleta_heatmaps <- c(rgb(.98,.8,.45,1), "blue4")
 paleta_líneas <- c("blue4", "orange","darkgreen", "red", "black", "pink",
                    "lightblue", "darkorange","lightgreen", "red4", "azure4", "green")
 tipo_líneas <- c("dashed", "solid", "longdash", "dotdash", "dotted", "solid",
                  "solid", "solid", "longdash", "solid", "dotdash", "solid", "dotdash")
-
 
 variables <- tibble(var = c("edad",
                             "sexo",
@@ -57,7 +55,7 @@ búsqueda_empleo <- tibble(original = niveles_tiempo_búsqueda_empleo,
 ) # búsqueda_empleo
 
 # Cargamos los datos...
-fichero <- "//jclm.es/PROS/SC/OBSERVATORIOEMPLEO/R/Mapas de calor parados/Parados.xlsx"
+fichero <- "//jclm.es/PROS/SC/OBSERVATORIOEMPLEO/R/Evolución paro CLM 2007-2022/Parados.xlsx"
 datos <- read.xlsx(xlsxFile = fichero,
                    sheet = "Media paro registrado 12M",
                    colNames = TRUE)
@@ -99,6 +97,34 @@ datos <- as_tibble(datos) %>%
             tiempo_búsqueda_empleo_agregado, parados)
 summary(datos)
 
+# Representamos la evolución del paro en estos 15 años
+resumen <- datos %>%
+     group_by(año) %>%
+     summarise(parados = sum(parados)) %>%
+     mutate(año = as.numeric(as.character(año)))
+
+años <- c(2007, 2013, 2019, 2020, 2022)
+paro_años <- resumen %>%
+     filter(año %in% años) %>%
+     select(parados) %>%
+     mutate(parados = round(parados, 0))
+puntos <- data.frame(años, paro_años)
+
+graf <- ggplot(resumen, aes(año, parados)) +
+     geom_line(size = 2, col = paleta_líneas[1], alpha = 0.5) +
+     xlab("")+
+     ylab("número de parados") +
+     ggtitle("Evolución del paro registrado en Castilla-La Mancha desde 2007") +
+     geom_point(puntos, mapping = aes(x = años, y = parados, shape = "circle filled", size = 1,
+                                      fill = paleta_líneas[1], alpha = 0.5)) +
+     theme(legend.position = "none", axis.title = element_text(face="bold", size = 11),
+           axis.text = element_text(face="bold", size = 10),
+           title = element_text(face="bold", size = 12)) +
+     scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE))
+
+ggsave(paste0("./Gráficos/Evolución del paro registrado en Castilla-La Mancha.pdf"),
+       height = 5.66, width = 11.32)
+     
 # Montamos la función que genera los gráficos de evolución:
 graf_evol <- function(variable){
      # INPUT: variable [alfanumérico; nombre de la variable a representar]
@@ -119,10 +145,11 @@ graf_evol <- function(variable){
           scale_color_manual(values = paleta_líneas, name = NULL) +
           scale_linetype_manual(values = tipo_líneas, name = NULL) +
           expand_limits(y = 0) +
-          theme(legend.position = "bottom") +
+          theme(legend.position = "none", axis.text = element_text(face="bold")) +
           xlab("") +
-          ylab("") +
-          guides(linetype = "none")
+          ylab("número de parados") +
+          guides(linetype = "none") +
+          scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE))
      
      tabla_porcentajes <- tabla %>%
           group_by(año) %>% 
@@ -138,29 +165,29 @@ graf_evol <- function(variable){
           scale_color_manual(values = paleta_líneas, name = NULL) +
           scale_linetype_manual(values = tipo_líneas, name = NULL) +
           expand_limits(y = 0) +
-          theme(legend.position = "bottom") +
+          theme(legend.position = "bottom", axis.text = element_text(face="bold")) +
           xlab("") +
-          ylab("")
-     
-     leyenda <- get_legend(graf_absolutos)
-     graf <- plot_grid(graf_absolutos + theme(legend.position = "none"),
+          ylab("porcentaje") +
+          scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE))
+
+     graf <- ggarrange(graf_absolutos,
                        graf_porcentajes,
-                       axis = "l",
-                       greedy = TRUE,
-                       ncol = 1,
-                       nrow = 2,
-                       labels = c("Número de parados", "Distribución porcentual"),
-                       common.legend = TRUE,
-                       legend = "bottom",
-                       theme(plot.title = paste0("Evolución del número de parados y su distribución porcentual según ", variable)))
-     
+                       # labels = c("   valores absolutos", "distribución porcentual"),
+                       # font.label = list(size = 1, alpha = 0.7),
+                       ncol = 1, align = "hv")
+     titulo <- paste0("Evolución del paro registrado según ",
+                      variables$literal[variables$var == variable])
+     graf <- annotate_figure(graf, top = text_grob(titulo, color = "black", face = "bold", size = 10))
+  
      return(graf)
-}
+     
+} # graf_evol
 
 # Generamos los gráficos de evolución:
 for (variab in variables$var[variables$var != "edad"]){
      print(graf_evol(variab))
-     ggsave(paste0("./Gráficos/Evolución según ", variables$literal[variables$var == variab], ".pdf"))
+     ggsave(paste0("./Gráficos/Evolución según ", variables$literal[variables$var == variab], ".pdf"),
+            height = 5.66, width = 8.49)
 }
 
 # Montamos la función que genera los heatmaps comparativos:
@@ -188,11 +215,12 @@ heatmap_años <- function(variable1, variable2, inicio = 2007, fin = 2022){
                          variables$literal[variables$var == variable2], " en ",
                          inicio, " y ", fin)) +
           theme(title = element_text(size = 10, face = "bold"),
-                strip.text = element_text(size = 11, face = "bold"),
-                axis.text = element_text(size = 10, face = "bold"))
+                axis.text = element_text(size = 10, face = "bold"),
+                strip.text = element_text(face = "bold"))
      
      return(graf)
-}
+     
+} # heatmap_años
 
 # Generamos los gráficos comparativos entre 2 años, para 2 variables:
 for (i in 1:(length(variables$var)-1)){
@@ -201,6 +229,50 @@ for (i in 1:(length(variables$var)-1)){
           ggsave(paste0("./Gráficos/Comparativa de ",
                         variables$literal[i],
                         " y ",
-                        variables$literal[j],".pdf"))
+                        variables$literal[j],".pdf"),
+                 height = 5.66, width = 11.32)
      } #j
 } #i
+
+
+# Montamos la función que genera los gráficos de funciones de densidad
+
+densidad_compara <- function(variab, inicio = 2007, crisis = 2013,
+                             preCOVID = 2019, postCOVID = 2020, fin = 2022){
+     # INPUT: variable [alfanumérico; nombre de la variable a representar]
+     #        inicio, medio y fin [numéricos; años a comparar]
+     # Produce un cuadro de gráficos comparando las distribuciones de la edad
+     # dentro de cada estrato de la variable para 3 años diferentes (2009, 2019 y 2022 por defecto):
+     
+     tabla <- select(datos, año, variab, edad, parados) %>%
+          filter(año %in% c(inicio, crisis, preCOVID, postCOVID, fin))
+     names(tabla) <- c("año", "variable", "edad", "parados")
+     
+     tabla <- tabla %>%
+          group_by(año, edad, variable) %>% 
+          summarise(parados = sum(parados)) %>%
+          mutate(parados = spline(edad ~
+                                       parados))
+     
+     graf <- ggplot(tabla, aes(x = edad, y = parados, color = año, fill = año)) +
+          geom_line(alpha=0.6, size = 1) +
+          facet_wrap(~ variable, ncol = dim(table(tabla$variable))[1]) +
+          ggtitle(paste0("Distribución por edades según año y ",
+                         variables$literal[variables$var == variab])) +
+          ylab("número de parados") +
+          scale_color_manual(values = paleta_líneas) +
+          scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+          theme(strip.text = element_text(face = "bold"))
+     
+     return(graf)
+     
+} # densidad_compara
+
+# Generamos los gráficos de funciones de densidad
+for (variab in variables$var[!(variables$var %in% c("edad", "tramo_edad",
+                                                    "tiempo_búsqueda_empleo"))]){
+     print(densidad_compara(variab))
+     ggsave(paste0("./Gráficos/Distribución de edad según ",
+                   variables$literal[variables$var == variab], ".pdf"),
+            height = 5.66, width = 11.32)
+}
