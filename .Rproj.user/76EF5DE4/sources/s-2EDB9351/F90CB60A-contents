@@ -9,7 +9,7 @@ rm(list = ls(all.names = TRUE))
 # Cargamos las librerías necesarias
 library(openxlsx)
 library(tidyverse)
-library(egg)
+library(egg) # combina gráficos en ggplot con ggarrange(), mejor que facet_wrap()
 
 
 # Establecemos variables y parámetros generales...
@@ -104,23 +104,23 @@ resumen <- datos %>%
      mutate(año = as.numeric(as.character(año)))
 
 años <- c(2007, 2013, 2019, 2020, 2022)
-paro_años <- resumen %>%
-     filter(año %in% años) %>%
-     select(parados) %>%
-     mutate(parados = round(parados, 0))
-puntos <- data.frame(años, paro_años)
+puntos <- resumen %>%
+     filter(año %in% años)
 
 graf <- ggplot(resumen, aes(año, parados)) +
      geom_line(size = 2, col = paleta_líneas[1], alpha = 0.5) +
      xlab("")+
      ylab("número de parados") +
      ggtitle("Evolución del paro registrado en Castilla-La Mancha desde 2007") +
-     geom_point(puntos, mapping = aes(x = años, y = parados, shape = "circle filled", size = 1,
-                                      fill = paleta_líneas[1], alpha = 0.5)) +
      theme(legend.position = "none", axis.title = element_text(face="bold", size = 11),
            axis.text = element_text(face="bold", size = 10),
            title = element_text(face="bold", size = 12)) +
-     scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE))
+     scale_y_continuous(labels = function(x) format(x, big.mark = ".", scientific = FALSE)) +
+     geom_point(puntos,
+                mapping = aes(x = año, y = parados,
+                              size = 1,
+                              colour = "orange"),
+                inherit.aes = FALSE)
 
 ggsave(paste0("./Gráficos/Evolución del paro registrado en Castilla-La Mancha.pdf"),
        height = 5.66, width = 11.32)
@@ -250,9 +250,7 @@ densidad_compara <- function(variab, inicio = 2007, crisis = 2013,
      
      tabla <- tabla %>%
           group_by(año, edad, variable) %>% 
-          summarise(parados = sum(parados)) %>%
-          mutate(parados = spline(edad ~
-                                       parados))
+          summarise(parados = sum(parados))
      
      graf <- ggplot(tabla, aes(x = edad, y = parados, color = año, fill = año)) +
           geom_line(alpha=0.6, size = 1) +
